@@ -1,0 +1,590 @@
+---
+title: "4ever Bock - Dashboard"
+date: "`r format(Sys.Date(), '%d.%m.%Y')`"
+output: 
+  flexdashboard::flex_dashboard:
+    logo: logo_lucky_strike_48_48.jpg
+    orientation: column
+    vertical_layout: fill
+    source_code: embed
+    navbar:
+        - { icon: "fa-linkedin", href: "https://www.linkedin.com/in/felix-aust/", align: right}
+        - { icon: "fa-github", href: "https://github.com/faust-x", align: right}
+        - { icon: "glyphicon-picture", href: "https://drive.google.com/drive/folders/1a7Rn8z1eSw-xZPczU5vioYJh0eftK5dj?usp=sharing", align: right}
+        - { icon: "glyphicon-edit", href: "https://docs.google.com/spreadsheets/d/1rZDkXF7CPSkXcMSGHUp-KRwgnoBsgN-xqQqRO-GyGs8/edit?usp=sharing", align: right}
+        
+
+---
+<style>                     
+.navbar {
+  background-color:#a7abaa;
+  border-color:#a1c4b9;
+}
+.navbar-brand {
+color:white!important;
+
+</style> 
+
+```{r setup, include=FALSE}
+#Packages laden 
+
+library(flexdashboard)
+library(tidyverse)
+library(janitor) 
+library(plotly)
+library(googlesheets4)
+library(DT)
+
+# 1. Daten Laden -----------------------
+# - { icon: "glyphicon-edit", href:"https://docs.google.com/spreadsheets/d/1rZDkXF7CPSkXcMSGHUp-KRwgnoBsgN-xqQqRO-GyGs8/edit?usp=sharing", align: right}
+# - { icon: "glyphicon-picture", href: "https://drive.google.com/drive/folders/1a7Rn8z1eSw-xZPczU5vioYJh0eftK5dj?usp=sharing", align: right}
+
+
+# 4ever Bock Daten 
+# 
+# 4everBock-Ehrenliste
+# https://docs.google.com/spreadsheets/d/1rZDkXF7CPSkXcMSGHUp-KRwgnoBsgN-xqQqRO-GyGs8/edit?usp=sharing
+# 
+# 4everBock-Ehrenbilder
+# https://drive.google.com/drive/folders/1a7Rn8z1eSw-xZPczU5vioYJh0eftK5dj?usp=sharing
+
+tbl <-
+  read_sheet("https://docs.google.com/spreadsheets/d/1rZDkXF7CPSkXcMSGHUp-KRwgnoBsgN-xqQqRO-GyGs8/edit?usp=sharing")
+
+#variablennamen umbennen 
+clean_names(tbl) ->tbl
+
+# unnötige spalten löschen 
+tbl %>% 
+  filter(!is.na(spieler_in)) -> tbl
+
+# 2. Übersichts tabellen erstellen ---------------------
+
+
+#2.1 Tabelle nach spieler_in erstellen -----------------
+tbl_sum_player <-
+tbl %>% 
+  group_by(spieler_in) %>% 
+  summarise(Spieltage = n_distinct(datum),
+            Spiele = sum(spielrunden_am_abend)-sum(spielrunden_ausgesetzt),
+            Bockrunden = sum(bockrunden_am_abend),
+            Soli = sum(soli_gespielt_anzahl),
+            Punkte =sum(punkte)) 
+# Farben für Balken hinzufügen 
+tbl_sum_player <-
+tbl_sum_player %>% 
+  mutate(Punkte_pro_spiel= round((Punkte/Spiele),1),
+         Farbe = case_when(Punkte<0 ~ "#d1615d",
+                           Punkte>0 ~ "#6a9f58")) %>%
+  arrange(Punkte)
+
+# Tabelle anschauen 
+tbl_sum_player
+
+
+#2.2 Tabelle der einzelnen Zahlungen berechnen  --------------------
+
+# Datum Spieler Eingezahlt Eingezahl gesamt 
+
+tbl_Einzahlung <-
+  tbl %>%
+  filter(notizen != "kein offizielles Spiel"|is.na(notizen)) %>%
+  filter(punkte<0) %>% 
+  mutate(Einzahlzung = punkte*-1/10,
+         datum = as.Date(datum))
+
+# fehelende Werte hinzufügen 
+
+tbl_Einzahlung <-
+  tbl_Einzahlung %>%
+  add_row(datum=as.Date("2021-12-08"),
+          spieler_in= "unbekannt",
+          Einzahlzung = 4.9)
+
+tbl_Einzahlung %>%
+  distinct(spieler_in) %>% pull -> spieler_in
+tbl_Einzahlung %>%
+  distinct(datum) %>% pull -> datum
+
+crossing(spieler_in,datum) -> x
+
+tbl_Einzahlung <-
+  left_join(x,tbl_Einzahlung,by=c("spieler_in","datum")) %>% 
+  mutate(across(where(is.numeric), ~replace(., is.na(.), 0)))
+
+# kumulierte Summe nach Spieler_in berechnen 
+tbl_Einzahlung %>% 
+  group_by(spieler_in) %>%
+  arrange(datum) %>% 
+  mutate(Einzahlung_gesamt= cumsum(Einzahlzung)) %>% 
+  select(datum,spieler_in,Einzahlzung,Einzahlung_gesamt) -> tbl_Einzahlung
+
+# Spieltagseinzahlung berechnen 
+tbl_Einzahlung %>% 
+  group_by(datum) %>% 
+  summarise(Einzahlung_Spieltag=sum(Einzahlzung)) %>% 
+  mutate(Einzahlung_Spieltag_gesamt =cumsum(Einzahlung_Spieltag)) -> x
+
+
+tbl_Einzahlung <-
+  left_join(tbl_Einzahlung,x, by="datum")
+
+
+#2.3 Kennzahlentabelle (gesamt) -----------------
+
+# Anzahl der Spieltage 
+tbl_kennzahl <-
+  tbl %>% 
+  summarise(Spieltage = n_distinct(tbl$datum),
+            Spieltag_zuletzt = format(max(tbl$datum), '%d.%m.%Y'),
+            Spieler_innen = n_distinct(tbl$spieler_in))
+
+# Anzahl der Spiel
+x<-
+  tbl %>% 
+  distinct(datum,spielrunden_am_abend,bockrunden_am_abend) %>% 
+  summarise(Spiele = sum(spielrunden_am_abend),
+            Bockrunden = sum(bockrunden_am_abend))
+
+tbl_kennzahl <-
+  bind_cols(tbl_kennzahl,x)
+
+
+# Spieler mit meisten Punkten 
+
+x <-
+  tbl_sum_player %>% 
+  filter(Punkte==max(Punkte)) %>% 
+  summarise(Punkte_Anzahl = max(Punkte),
+            Punkte_Spieler_in = toString(unique(spieler_in)))
+
+tbl_kennzahl <-
+  bind_cols(tbl_kennzahl,x)
+
+
+# Spieler mit meisten Solis
+
+x <-
+  tbl_sum_player %>% 
+  filter(Soli==max(Soli)) %>% 
+  summarise(Soli_Anzahl = max(Soli),
+            Soli_Spieler_in = toString(unique(spieler_in)))
+
+tbl_kennzahl <-
+  bind_cols(tbl_kennzahl,x)
+
+# Spieler_in mit meisten Spieltagssiegen 
+x <-
+tbl %>% 
+  group_by(datum) %>% 
+  filter(punkte == max(punkte)) %>% 
+  group_by(spieler_in) %>% 
+  tally() %>% 
+  filter(n== max(n)) %>% 
+  summarise(spieltagssiege_max_n = unique(n),
+            spieltagssiege_max_name = toString(unique(spieler_in)))
+
+
+tbl_kennzahl <-
+  bind_cols(tbl_kennzahl,x)
+
+tbl_kennzahl %>%t()
+
+
+#2.4 Kennzahlen nach Spieltagen berechnen --------------------
+
+tbl_spieltag <-
+  tbl %>% 
+  group_by(datum) %>% 
+  summarise(spiele = max(spielrunden_am_abend),
+            bockrunden_am_abend = max(bockrunden_am_abend),
+            spieler_in = n_distinct(spieler_in))
+
+# siegerin mit punktanzahl
+tbl %>% 
+  group_by(datum) %>% 
+  filter(punkte == max(punkte)) %>% 
+  select(datum,sieger_in = spieler_in, sieger_in_punkte = punkte) -> x
+
+# joinen 
+tbl_spieltag <-
+  tbl_spieltag %>% 
+  left_join(.,x, by="datum")
+
+# eingezahlt
+tbl %>% 
+  group_by(datum) %>% 
+  filter(punkte <= 0) %>%
+  summarise(eingezahlt = sum(punkte)*-1/10)-> x
+
+# joinen 
+tbl_spieltag <-
+  tbl_spieltag %>% 
+  left_join(.,x, by="datum")
+
+# datum als datum 
+tbl_spieltag <-
+tbl_spieltag %>% 
+  mutate(datum = as.Date(datum)) 
+
+# fehelenden Spieltag hinzufügen 
+tbl_spieltag <-
+  tbl_spieltag %>%
+  add_row(datum=as.Date("2021-12-08"),
+          sieger_in= "unbekannt",
+          eingezahlt = 4.9) %>% 
+    arrange(datum)
+
+# nicht getätigte einzahlung am ersten Tag korrigieren 
+tbl_spieltag <-
+tbl_spieltag %>% mutate(eingezahlt = case_when(datum == "2021-10-13" ~ 0,
+                                               TRUE ~ eingezahlt))
+
+
+
+
+
+#2.10 Alle Tabellen in der übersicht ---------------
+# 
+# tbl
+# tbl_kennzahl %>% t()
+# tbl_sum_player
+# tbl_spieltag
+# tbl_Einzahlung
+
+tbl_Einzahlung %>% 
+  filter(datum == max(datum)) %>% 
+  ungroup() %>% 
+  select(Einzahlung_Spieltag_gesamt) %>% 
+  distinct() %>% 
+  pull() -> total_pot
+
+
+```
+
+Übersicht
+===================================== 
+
+
+Column {data-width=200}
+-----------------------------------------------------------------------
+
+### Spieltage
+
+```{r}
+valueBox(paste(tbl_kennzahl$Spieltage,"Spieltage"), caption = paste(" ",""),icon = "fa-dice", color ="#a7abaa")
+```
+
+### Spiele
+
+```{r}
+valueBox(paste(tbl_kennzahl$Spiele,"Spiele"), caption = paste(" ",""),icon = "fa-undo-alt", color ="#a7abaa")
+```
+
+### Bockrunden
+
+```{r}
+valueBox(paste(tbl_kennzahl$Bockrunden,"Bockrunden"), caption = paste(" ",""),icon = "fa-dice-two", color ="#a7abaa")
+```
+
+
+### Kassenstand
+
+```{r}
+valueBox(paste0(total_pot,"0 €"), caption = paste0("Kassenstand"),icon = "fa-euro-sign", color ="#a7abaa")
+
+```
+
+
+### Beste Spielerin 
+
+```{r}
+valueBox(paste(tbl_kennzahl$Punkte_Spieler_in,""), caption = paste0("meisten Punkte (",tbl_kennzahl$Punkte_Anzahl,")"),icon = "fa-medal", color ="#a7abaa")
+
+```
+
+### Beste Soli
+
+```{r}
+valueBox(paste(tbl_kennzahl$Soli_Spieler_in,""), caption = paste0("meisten Soli (",tbl_kennzahl$Soli_Anzahl,")"),icon = "fa-user", color ="#a7abaa")
+
+```
+
+### meiste Siege
+
+```{r}
+valueBox(paste(tbl_kennzahl$spieltagssiege_max_name,""), caption = paste0("meiste Spieltagssiege  (",tbl_kennzahl$spieltagssiege_max_n,")"),icon = "fa-medal", color ="#a7abaa")
+
+```
+
+
+### letzter Spieltag
+
+```{r}
+valueBox(paste(tbl_kennzahl$Spieltag_zuletzt,""), caption = paste("letzer Spieltag",""),icon = "fa-calendar", color ="#a7abaa")
+
+```
+
+
+Column {data-width=800 .tabset .tabset-fade}
+-----------------------------------------------------------------------
+
+### Gesamtpunkte nach Spieler:in
+
+```{r}
+fig <-
+plot_ly() %>% 
+  add_trace(data= tbl_sum_player,
+            x = ~spieler_in,
+            y = ~Punkte,
+            name = "Punkte (gesamt)",
+            type = 'bar',
+            marker = list(color = tbl_sum_player$Farbe),
+            text=~Punkte,
+            textfont=list(color="white"),
+            textposition = 'auto',
+            hovermode = "closest",
+            hovertemplate = paste0("Spieler:in<b>: ",tbl_sum_player$spieler_in,"</b><br><br>",
+                                   "-Spieltage: ",tbl_sum_player$Spieltage,"<br>",
+                                   "-Spiele: ",tbl_sum_player$Spiele,"<br>",
+                                   "-Punkte: <b>",tbl_sum_player$Punkte,"</b><br>",
+                                   "-Soli: ",tbl_sum_player$Soli,"<br>",
+                                   "<extra></extra>"))
+
+fig <-
+  fig %>%
+  layout(title = list(text = "<b>Gesamtpunkte nach Spieler:in</b>", 
+                      font= list(size = 24,
+                                 family = "calibri"),
+                      y = 0.98),
+         font = list(family = "calibri",size = 18),
+         separators = ',',
+         yaxis = list(title = "Punkte",
+                      ticksuffix = ""),
+         xaxis = list(title = list(text = "", standoff = 3),
+                      categoryorder = "total descending",
+                      zeroline = FALSE),
+         legend = list(orientation = 'h')) 
+
+fig
+```
+
+Einzahlung  
+=====================================
+
+Column {.tabset .tabset-fade}
+-----------------------------------------------------------------------
+
+
+### Einzahlung nach Spieler:in
+
+```{r}
+
+tbl_Einzahlung %>% 
+  filter(datum == max(datum)) %>% 
+  left_join(.,tbl_sum_player,by="spieler_in") %>% 
+  mutate(Einzahlung_pro_spiel = round(Einzahlung_gesamt/Spiele,2)) -> y
+
+
+fig <-
+  plot_ly() %>% 
+  add_trace(data= y,
+            x = ~spieler_in,
+            y = ~Einzahlung_gesamt,
+            name = "Einzahlung (gesamt)",
+            type = 'bar',
+            marker = list(color = "#5778a4"),
+            text= paste0(round (y$Einzahlung_gesamt,2)," €"),
+            textfont=list(color="white"),
+            textposition = 'auto',
+            hovermode = "closest",
+            hovertemplate = paste0("Spieler:in<b>: ",y$spieler_in,"</b><br><br>",
+                                   "-Einzahlungen: <b>",y$Einzahlung_gesamt," € </b><br>",
+                                   "-Einzahlungen pro Spiel: ",y$Einzahlung_pro_spiel," €<br>",
+                                   "-Spieltage: ",y$Spieltage,"<br>",
+                                   "-Spiele: ",y$Spiele,"<br>",
+                                   "-Punkte: ",y$Punkte,"<br>",
+                                   "-Soli: ",y$Soli,"<br>",
+                                   "<extra></extra>"))
+
+
+fig <-
+  fig %>%
+  layout(title = list(text = "<b>Einzahlung nach Spieler:in</b>", 
+                      font= list(size = 24,
+                                 family = "calibri"),
+                      y = 0.98),
+         font = list(family = "calibri",size = 18),
+         separators = ',',
+         yaxis = list(title = "Einzahlung in €",
+                      ticksuffix = " €"),
+         xaxis = list(title = list(text = "", standoff = 3),
+                      categoryorder = "total descending",
+                      zeroline = FALSE
+                      ),
+         legend = list(orientation = 'h'),
+         annotations=list(text=paste0("<b>Gesamt: ",total_pot,"0 €</b>"), 
+                          "showarrow"=F,
+                          align = "right",
+                          x= 5,
+                          y= 10
+                          )) 
+
+fig
+
+```
+
+### Einzahlung nach Spieler:in im Zeitverlauf
+
+```{r}
+# Datum Spieler Eingezahlt Eingezahl gesamt 
+
+tbl_Einzahlung <-
+tbl %>%
+  filter(notizen != "kein offizielles Spiel"|is.na(notizen)) %>%
+  filter(punkte<0) %>% 
+  mutate(Einzahlzung = punkte*-1/10,
+         datum = as.Date(datum))
+
+
+# fehelende Werte hinzufügen 
+
+tbl_Einzahlung <-
+tbl_Einzahlung %>%
+  add_row(datum=as.Date("2021-12-08"),
+          spieler_in= "unbekannt",
+          Einzahlzung = 5)
+
+
+tbl_Einzahlung %>%
+  distinct(spieler_in) %>% pull -> spieler_in
+tbl_Einzahlung %>%
+  distinct(datum) %>% pull -> datum
+
+
+crossing(spieler_in,datum) -> x
+
+tbl_Einzahlung <-
+left_join(x,tbl_Einzahlung,by=c("spieler_in","datum")) %>% 
+  mutate(across(where(is.numeric), ~replace(., is.na(.), 0)))
+
+# kumulierte Summe nach Spieler_in berechnen 
+tbl_Einzahlung %>% 
+  group_by(spieler_in) %>%
+  arrange(datum) %>% 
+  mutate(Einzahlung_gesamt= cumsum(Einzahlzung)) %>% 
+  select(datum,spieler_in,Einzahlzung,Einzahlung_gesamt) -> tbl_Einzahlung
+
+# Spieltagseinzahlung berechnen 
+tbl_Einzahlung %>% 
+  group_by(datum) %>% 
+  summarise(Einzahlung_Spieltag=sum(Einzahlzung)) %>% 
+  mutate(Einzahlung_Spieltag_gesamt =cumsum(Einzahlung_Spieltag)) -> x
+
+
+tbl_Einzahlung <-
+left_join(tbl_Einzahlung,x, by="datum")
+
+
+fig <- plot_ly() %>%
+  add_trace(data=tbl_Einzahlung,
+            x = ~datum,
+            y = ~Einzahlung_gesamt,
+            color = ~spieler_in,
+            type = 'scatter',
+            mode = 'none',
+            stackgroup= "one",
+            #split = "one",
+            #groupnorm = 'fraction',
+            #fill = 'tozeroy',
+            hovermode = "closest",
+            hovertemplate = paste0("Spieler:in<b>: ",tbl_Einzahlung$spieler_in,"</b><br><br>",
+                                   "-Datum des Spieltages: ",format(tbl_Einzahlung$datum,"%d.%m.%Y"),"<br>",
+                                   "-Einzahlung: ",tbl_Einzahlung$Einzahlzung,"€<br>",
+                                   "-Einzahlung gesamt: <b>",tbl_Einzahlung$Einzahlung_gesamt,
+                                   "€<extra></extra>"))
+
+fig <-
+fig %>% 
+  layout(title = list(text = "<b>Einzahlung nach Spieler:in im Zeitverlauf</b>", 
+                      font= list(size = 24,
+                                 family = "calibri"),
+                      y = 0.98),
+         font = list(family = "calibri",size = 18),separators = ',.',
+         xaxis = list(title = "",
+                      tickformat = "%d<br>%B<br>%Y"),
+         yaxis = list(title = "Betrag in €",
+                      tickformat=",digit",
+                      ticksuffix = " €"),
+         legend = list(orientation = 'v'))
+
+fig
+
+```
+
+
+
+
+
+Spieltage und Spieler:innen im Detail 
+=====================================
+
+Column {.tabset .tabset-fade}
+-----------------------------------------------------------------------
+
+### Daten nach Spieler:innen
+```{r}
+# Daten nach Spieler:innen 
+tbl_sum_player %>% 
+  arrange(desc(Punkte_pro_spiel)) %>% 
+  select("Spieler:in"=1,
+         Spieltage,
+         Spiele,
+         Bockrunden,
+         Soli,
+         Punkte,
+         "Punkte pro Spiel"= Punkte_pro_spiel) %>%  
+  datatable(.,filter = 'top',class = 'cell-border stripe',
+            options = list(searchHighlight = TRUE))
+```
+
+### Daten nach Spieltagen 
+```{r}
+# Daten nach Spieltagen 
+tbl_spieltag %>% 
+  arrange(desc(datum)) %>% 
+  mutate(eingezahlt = round(eingezahlt,2)) %>% 
+  rename(Datum=1,
+         Spiele=2,
+         Bockrunden = 3,
+         "Anzahl Spieler:in" = 4,
+         "Sieger:in" = 5,
+         "Punktzahl Sieger:in" = 6,
+         "Eingezahlt in €" = eingezahlt) %>%  
+  datatable(.,filter = 'top',class = 'cell-border stripe',
+          options = list(searchHighlight = TRUE))
+
+```
+
+
+
+
+
+### Alle Daten
+```{r}
+# Alle Daten 
+tbl %>% 
+  mutate(datum = as.Date(datum)) %>% 
+  select(-id,-gezahlt) %>% 
+  rename(Datum=1,
+         Spiele=2,
+         Bockrunden = 3,
+         "Spieler:in" = 4,
+         Punkte = 5,
+         "Spielrunden ausgesetzt" = 6,
+         "Anzahl Soli" = 7,
+         Notizen = notizen) %>% 
+  datatable(.,filter = 'top',class = 'cell-border stripe',
+            options = list(pageLength = 15,
+                           searchHighlight = TRUE))
+```
