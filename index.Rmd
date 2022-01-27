@@ -516,7 +516,7 @@ fig %>%
          yaxis = list(title = "Betrag in €",
                       tickformat=",digit",
                       ticksuffix = " €"),
-         legend = list(orientation = 'v'))
+         legend = list(orientation = 'h'))
 
 fig
 
