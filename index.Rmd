@@ -492,7 +492,7 @@ fig <- plot_ly() %>%
             y = ~Einzahlung_gesamt,
             color = ~spieler_in,
             type = 'scatter',
-            mode = 'none',
+            mode = 'markers',
             stackgroup= "one",
             #split = "one",
             #groupnorm = 'fraction',
@@ -512,7 +512,7 @@ fig %>%
                       y = 0.98),
          font = list(family = "calibri",size = 18),separators = ',.',
          xaxis = list(title = "",
-                      tickformat = "%d<br>%B<br>%Y"),
+                      tickformat = "%d.%m."),
          yaxis = list(title = "Betrag in €",
                       tickformat=",digit",
                       ticksuffix = " €"),
@@ -545,7 +545,10 @@ tbl_sum_player %>%
          Punkte,
          "Punkte pro Spiel"= Punkte_pro_spiel) %>%  
   datatable(.,filter = 'top',class = 'cell-border stripe',
-            options = list(searchHighlight = TRUE))
+            options = list(pageLength = 15,
+                         scrollY = '600px',
+                         scrollX = TRUE,
+                         searchHighlight = TRUE))
 ```
 
 ### Daten nach Spieltagen 
@@ -562,7 +565,10 @@ tbl_spieltag %>%
          "Punktzahl Sieger:in" = 6,
          "Eingezahlt in €" = eingezahlt) %>%  
   datatable(.,filter = 'top',class = 'cell-border stripe',
-          options = list(searchHighlight = TRUE))
+          options = list(pageLength = 15,
+                         scrollY = '600px',
+                         scrollX = TRUE,
+                         searchHighlight = TRUE))
 
 ```
 
@@ -586,5 +592,7 @@ tbl %>%
          Notizen = notizen) %>% 
   datatable(.,filter = 'top',class = 'cell-border stripe',
             options = list(pageLength = 15,
+                           scrollY = '600px',
+                           scrollX = TRUE,
                            searchHighlight = TRUE))
 ```
