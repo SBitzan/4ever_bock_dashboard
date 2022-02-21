@@ -387,7 +387,7 @@ valueBox(paste(tbl_kennzahl$Spieltag_zuletzt,""), caption = paste("letzer Spielt
 Column {data-width=800 .tabset .tabset-fade}
 -----------------------------------------------------------------------
 
-### Gesamtpunkte nach Spieler:in
+### Gesamtpunkte
 
 ```{r}
 fig <-
@@ -429,7 +429,7 @@ fig <-
 fig
 ```
 
-### Durchschnittliche Punkte pro Spiel nach Spieler:in
+### Durchschnittliche Punkte pro Spiel
 
 ```{r}
 fig <-
@@ -472,7 +472,7 @@ fig
 ```
 
 
-### Anzahl der Spiele nach Spieler:in
+### Anzahl der Spiele
 
 ```{r}
 fig <-
@@ -514,7 +514,7 @@ fig <-
 fig
 ```
 
-### Anzahl der Spieltagssiege nach Spieler:in
+### Anzahl der Spieltagssiege 
 
 ```{r}
 fig <-
@@ -556,7 +556,47 @@ fig <-
 fig
 ```
 
+### Anzahl der Soli
 
+```{r}
+fig <-
+plot_ly() %>% 
+  add_trace(data= tbl_sum_player,
+            x = ~spieler_in,
+            y = ~Soli,
+            name = "Anzahl der Spieltagssiege",
+            type = 'bar',
+            marker = list(color = "#85b6b2"),
+            text=~Soli,
+            textfont=list(color="white"),
+            textposition = 'auto',
+            hovermode = "closest",
+            hovertemplate = paste0("Spieler:in<b>: ",tbl_sum_player$spieler_in,"</b><br><br>",
+                                   "-Spieltage: ",tbl_sum_player$Spieltage,"<br>",
+                                   "-Spiele: <b> ",tbl_sum_player$Spiele,"</b><br>",
+                                   "-Spieltagssiege: ",tbl_sum_player$spieltagssiege,"<br>",
+                                   "-Punkte: ",tbl_sum_player$Punkte,"<br>",
+                                   "-Punkte pro Spiel: ",tbl_sum_player$Punkte_pro_spiel,"<br>",
+                                   "-Soli: ",tbl_sum_player$Soli,"<br>",
+                                   "<extra></extra>"))
+
+fig <-
+  fig %>%
+  layout(title = list(text = "<b>Anzahl der Soli nach Spieler:in</b>", 
+                      font= list(size = 24,
+                                 family = "calibri"),
+                      y = 0.98),
+         font = list(family = "calibri",size = 18),
+         separators = ',',
+         yaxis = list(title = "Anzahl der Soli",
+                      ticksuffix = ""),
+         xaxis = list(title = list(text = "", standoff = 3),
+                      categoryorder = "total descending",
+                      zeroline = FALSE),
+         legend = list(orientation = 'h')) 
+
+fig
+```
 
 
 Einzahlung  
