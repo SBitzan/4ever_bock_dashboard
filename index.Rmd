@@ -74,12 +74,22 @@ tbl %>%
 tbl_sum_player <-
 tbl_sum_player %>% 
   mutate(Punkte_pro_spiel= round((Punkte/Spiele),1),
-         Farbe = case_when(Punkte<0 ~ "#d1615d",
+         farbe = case_when(Punkte<0 ~ "#d1615d",
                            Punkte>0 ~ "#6a9f58")) %>%
   arrange(Punkte)
+# temoräre Tabelle mit Spietagssiegen erzeugen 
+temp <-
+tbl %>% 
+  group_by(datum) %>% 
+  filter(punkte == max(punkte)) %>%
+  group_by(spieler_in) %>% 
+  summarise(spieltagssiege=n())
 
-# Tabelle anschauen 
-tbl_sum_player
+# Spieltage joinen an die Tabelle 
+tbl_sum_player <-
+tbl_sum_player %>% 
+  left_join(.,temp, by = "spieler_in") %>% 
+  mutate_if(is.numeric, ~replace(., is.na(.), 0))
 
 
 #2.2 Tabelle der einzelnen Zahlungen berechnen  --------------------
@@ -185,6 +195,36 @@ tbl %>%
             spieltagssiege_max_name = toString(unique(spieler_in)))
 
 
+tbl_kennzahl <-
+  bind_cols(tbl_kennzahl,x)
+
+# Spieler_in mit meisten Spiele 
+x <-
+tbl %>%
+  ungroup() %>% 
+  group_by(spieler_in) %>% 
+  summarise(spiele = sum(spielrunden_am_abend)) %>%
+  filter(spiele == max(spiele)) %>%
+  summarise(spiele_max_n = unique(spiele),
+            spiele_max_name = toString(unique(spieler_in)))
+
+tbl_kennzahl <-
+  bind_cols(tbl_kennzahl,x)
+
+
+# Spieler_in mit bester punkte/spiel-ratio   
+x <-
+tbl %>%
+  group_by(spieler_in) %>% 
+  summarise(spiele = sum(spielrunden_am_abend),
+            punkte = sum(punkte)) %>% 
+  mutate(punkte_pro_spiel = punkte/spiele) %>% 
+  filter(punkte_pro_spiel == max(punkte_pro_spiel)) %>%
+  summarise(punkte_pro_spiel_max = unique(punkte_pro_spiel),
+            punkte_pro_spiel_max_name = toString(unique(spieler_in))) %>% 
+  mutate(punkte_pro_spiel_max = round(punkte_pro_spiel_max,2))
+
+x %>% view
 tbl_kennzahl <-
   bind_cols(tbl_kennzahl,x)
 
@@ -303,17 +343,35 @@ valueBox(paste(tbl_kennzahl$Punkte_Spieler_in,""), caption = paste0("meisten Pun
 
 ```
 
-### Beste Soli
+
+### Effektivste Spielerin 
 
 ```{r}
-valueBox(paste(tbl_kennzahl$Soli_Spieler_in,""), caption = paste0("meisten Soli (",tbl_kennzahl$Soli_Anzahl,")"),icon = "fa-user", color ="#a7abaa")
+valueBox(paste(tbl_kennzahl$punkte_pro_spiel_max_name,""), caption = paste0("meiste Punkte pro Spiel (",tbl_kennzahl$punkte_pro_spiel_max,")"),icon = "fa-medal", color ="#a7abaa")
 
 ```
+
+
 
 ### meiste Siege
 
 ```{r}
 valueBox(paste(tbl_kennzahl$spieltagssiege_max_name,""), caption = paste0("meiste Spieltagssiege  (",tbl_kennzahl$spieltagssiege_max_n,")"),icon = "fa-medal", color ="#a7abaa")
+
+```
+
+### meiste Spiele
+
+```{r}
+valueBox(paste(tbl_kennzahl$spiele_max_name,""), caption = paste0("meisten Spiele  (",tbl_kennzahl$spiele_max_n,")"),icon = "fa-dice-two", color ="#a7abaa")
+
+```
+
+
+### Meisten Soli
+
+```{r}
+valueBox(paste(tbl_kennzahl$Soli_Spieler_in,""), caption = paste0("meisten Soli (",tbl_kennzahl$Soli_Anzahl,")"),icon = "fa-user", color ="#a7abaa")
 
 ```
 
@@ -339,7 +397,7 @@ plot_ly() %>%
             y = ~Punkte,
             name = "Punkte (gesamt)",
             type = 'bar',
-            marker = list(color = tbl_sum_player$Farbe),
+            marker = list(color = tbl_sum_player$farbe),
             text=~Punkte,
             textfont=list(color="white"),
             textposition = 'auto',
@@ -347,7 +405,9 @@ plot_ly() %>%
             hovertemplate = paste0("Spieler:in<b>: ",tbl_sum_player$spieler_in,"</b><br><br>",
                                    "-Spieltage: ",tbl_sum_player$Spieltage,"<br>",
                                    "-Spiele: ",tbl_sum_player$Spiele,"<br>",
+                                   "-Spieltagssiege:  ",tbl_sum_player$spieltagssiege,"<br>",
                                    "-Punkte: <b>",tbl_sum_player$Punkte,"</b><br>",
+                                   "-Punkte pro Spiel: ",tbl_sum_player$Punkte_pro_spiel,"<br>",
                                    "-Soli: ",tbl_sum_player$Soli,"<br>",
                                    "<extra></extra>"))
 
@@ -368,6 +428,136 @@ fig <-
 
 fig
 ```
+
+### Durchschnittliche Punkte pro Spiel nach Spieler:in
+
+```{r}
+fig <-
+plot_ly() %>% 
+  add_trace(data= tbl_sum_player,
+            x = ~spieler_in,
+            y = ~Punkte_pro_spiel,
+            name = "Punkte (gesamt)",
+            type = 'bar',
+            marker = list(color = tbl_sum_player$farbe),
+            text=~Punkte_pro_spiel,
+            textfont=list(color="white"),
+            textposition = 'auto',
+            hovermode = "closest",
+            hovertemplate = paste0("Spieler:in<b>: ",tbl_sum_player$spieler_in,"</b><br><br>",
+                                   "-Spieltage: ",tbl_sum_player$Spieltage,"<br>",
+                                   "-Spiele: ",tbl_sum_player$Spiele,"<br>",
+                                   "-Spieltagssiege: ",tbl_sum_player$spieltagssiege,"<br>",
+                                   "-Punkte: ",tbl_sum_player$Punkte,"<br>",
+                                   "-Punkte pro Spiel:<b> ",tbl_sum_player$Punkte_pro_spiel,"</b><br>",
+                                   "-Soli: ",tbl_sum_player$Soli,"<br>",
+                                   "<extra></extra>"))
+
+fig <-
+  fig %>%
+  layout(title = list(text = "<b>Durchschnittliche Punkte pro Spiel nach Spieler:in</b>", 
+                      font= list(size = 24,
+                                 family = "calibri"),
+                      y = 0.98),
+         font = list(family = "calibri",size = 18),
+         separators = ',',
+         yaxis = list(title = "Punkte",
+                      ticksuffix = ""),
+         xaxis = list(title = list(text = "", standoff = 3),
+                      categoryorder = "total descending",
+                      zeroline = FALSE),
+         legend = list(orientation = 'h')) 
+
+fig
+```
+
+
+### Anzahl der Spiele nach Spieler:in
+
+```{r}
+fig <-
+plot_ly() %>% 
+  add_trace(data= tbl_sum_player,
+            x = ~spieler_in,
+            y = ~Spiele,
+            name = "Anzahl der Spiele",
+            type = 'bar',
+            marker = list(color = "#85b6b2"),
+            text=~Spiele,
+            textfont=list(color="white"),
+            textposition = 'auto',
+            hovermode = "closest",
+            hovertemplate = paste0("Spieler:in<b>: ",tbl_sum_player$spieler_in,"</b><br><br>",
+                                   "-Spieltage: ",tbl_sum_player$Spieltage,"<br>",
+                                   "-Spiele: <b> ",tbl_sum_player$Spiele,"</b><br>",
+                                   "-Spieltagssiege: ",tbl_sum_player$spieltagssiege,"<br>",
+                                   "-Punkte: ",tbl_sum_player$Punkte,"<br>",
+                                   "-Punkte pro Spiel: ",tbl_sum_player$Punkte_pro_spiel,"<br>",
+                                   "-Soli: ",tbl_sum_player$Soli,"<br>",
+                                   "<extra></extra>"))
+
+fig <-
+  fig %>%
+  layout(title = list(text = "<b>Spiele nach Spieler:in</b>", 
+                      font= list(size = 24,
+                                 family = "calibri"),
+                      y = 0.98),
+         font = list(family = "calibri",size = 18),
+         separators = ',',
+         yaxis = list(title = "Spiele",
+                      ticksuffix = ""),
+         xaxis = list(title = list(text = "", standoff = 3),
+                      categoryorder = "total descending",
+                      zeroline = FALSE),
+         legend = list(orientation = 'h')) 
+
+fig
+```
+
+### Anzahl der Spieltagssiege nach Spieler:in
+
+```{r}
+fig <-
+plot_ly() %>% 
+  add_trace(data= tbl_sum_player,
+            x = ~spieler_in,
+            y = ~spieltagssiege,
+            name = "Anzahl der Spieltagssiege",
+            type = 'bar',
+            marker = list(color = "#85b6b2"),
+            text=~spieltagssiege,
+            textfont=list(color="white"),
+            textposition = 'auto',
+            hovermode = "closest",
+            hovertemplate = paste0("Spieler:in<b>: ",tbl_sum_player$spieler_in,"</b><br><br>",
+                                   "-Spieltage: ",tbl_sum_player$Spieltage,"<br>",
+                                   "-Spiele: <b> ",tbl_sum_player$Spiele,"</b><br>",
+                                   "-Spieltagssiege: ",tbl_sum_player$spieltagssiege,"<br>",
+                                   "-Punkte: ",tbl_sum_player$Punkte,"<br>",
+                                   "-Punkte pro Spiel: ",tbl_sum_player$Punkte_pro_spiel,"<br>",
+                                   "-Soli: ",tbl_sum_player$Soli,"<br>",
+                                   "<extra></extra>"))
+
+fig <-
+  fig %>%
+  layout(title = list(text = "<b>Spieltagssiege nach Spieler:in</b>", 
+                      font= list(size = 24,
+                                 family = "calibri"),
+                      y = 0.98),
+         font = list(family = "calibri",size = 18),
+         separators = ',',
+         yaxis = list(title = "Anzahl der Siege",
+                      ticksuffix = ""),
+         xaxis = list(title = list(text = "", standoff = 3),
+                      categoryorder = "total descending",
+                      zeroline = FALSE),
+         legend = list(orientation = 'h')) 
+
+fig
+```
+
+
+
 
 Einzahlung  
 =====================================
