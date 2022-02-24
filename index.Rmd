@@ -653,11 +653,14 @@ fig <-
                       zeroline = FALSE
                       ),
          legend = list(orientation = 'h'),
-         annotations=list(text=paste0("<b>Gesamt: ",total_pot,"0 €</b>"), 
+         annotations=list(text=paste0("<b>Gesamt: ",total_pot,"0 €</b>"),
                           "showarrow"=F,
-                          align = "right",
-                          x= 5,
-                          y= 10
+                          align = "left",
+                          yref = "paper",
+                          xref = "paper",
+                          x= 0.9,
+                          y= 0.9,
+                          font = list(size = 22)
                           )) 
 
 fig
