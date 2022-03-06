@@ -213,18 +213,25 @@ tbl_kennzahl <-
 
 
 # Spieler_in mit bester punkte/spiel-ratio   
-x <-
-tbl %>%
-  group_by(spieler_in) %>% 
-  summarise(spiele = sum(spielrunden_am_abend),
-            punkte = sum(punkte)) %>% 
-  mutate(punkte_pro_spiel = punkte/spiele) %>% 
-  filter(punkte_pro_spiel == max(punkte_pro_spiel)) %>%
-  summarise(punkte_pro_spiel_max = unique(punkte_pro_spiel),
-            punkte_pro_spiel_max_name = toString(unique(spieler_in))) %>% 
-  mutate(punkte_pro_spiel_max = round(punkte_pro_spiel_max,2))
+# x <-
+# tbl %>%
+#   group_by(spieler_in) %>% 
+#   summarise(spiele = sum(spielrunden_am_abend),
+#             punkte = sum(punkte)) %>% 
+#   mutate(punkte_pro_spiel = punkte/spiele) %>%
+#   filter(punkte_pro_spiel == max(punkte_pro_spiel)) %>%
+#   summarise(punkte_pro_spiel_max = unique(punkte_pro_spiel),
+#             punkte_pro_spiel_max_name = toString(unique(spieler_in))) %>% 
+#   mutate(punkte_pro_spiel_max = round(punkte_pro_spiel_max,2))
 
-x %>% view
+x <-
+tbl_sum_player %>% 
+  filter(Punkte_pro_spiel== max(Punkte_pro_spiel)) %>% 
+  select(spieler_in,Punkte_pro_spiel) %>% 
+  rename(punkte_pro_spiel_max = Punkte_pro_spiel,
+         punkte_pro_spiel_max_name= spieler_in)
+
+
 tbl_kennzahl <-
   bind_cols(tbl_kennzahl,x)
 
