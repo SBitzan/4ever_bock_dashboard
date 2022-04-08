@@ -229,7 +229,10 @@ tbl_sum_player %>%
   filter(Punkte_pro_spiel== max(Punkte_pro_spiel)) %>% 
   select(spieler_in,Punkte_pro_spiel) %>% 
   rename(punkte_pro_spiel_max = Punkte_pro_spiel,
-         punkte_pro_spiel_max_name= spieler_in)
+         punkte_pro_spiel_max_name= spieler_in) %>% 
+  
+  summarise(punkte_pro_spiel_max = unique(punkte_pro_spiel_max),
+            punkte_pro_spiel_max_namee = toString(unique(punkte_pro_spiel_max_name)))
 
 
 tbl_kennzahl <-
@@ -304,7 +307,8 @@ tbl_Einzahlung %>%
   ungroup() %>% 
   select(Einzahlung_Spieltag_gesamt) %>% 
   distinct() %>% 
-  pull() -> total_pot
+  pull() %>%
+  format(round(.), nsmall = 2) -> total_pot
 
 
 ```
@@ -338,7 +342,7 @@ valueBox(paste(tbl_kennzahl$Bockrunden,"Bockrunden"), caption = paste(" ",""),ic
 ### Kassenstand
 
 ```{r}
-valueBox(paste0(total_pot,"0 €"), caption = paste0("Kassenstand"),icon = "fa-euro-sign", color ="#a7abaa")
+valueBox(paste0(total_pot," €"), caption = paste0("Kassenstand"),icon = "fa-euro-sign", color ="#a7abaa")
 
 ```
 
@@ -660,7 +664,7 @@ fig <-
                       zeroline = FALSE
                       ),
          legend = list(orientation = 'h'),
-         annotations=list(text=paste0("<b>Gesamt: ",total_pot,"0 €</b>"),
+         annotations=list(text=paste0("<b>Gesamt: ",total_pot," €</b>"),
                           "showarrow"=F,
                           align = "left",
                           yref = "paper",
