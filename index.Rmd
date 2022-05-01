@@ -231,7 +231,7 @@ tbl_sum_player %>%
   rename(punkte_pro_spiel_max = Punkte_pro_spiel,
          punkte_pro_spiel_max_name= spieler_in) %>% 
   summarise(punkte_pro_spiel_max = unique(punkte_pro_spiel_max),
-            punkte_pro_spiel_max_namee = toString(unique(punkte_pro_spiel_max_name)))
+            punkte_pro_spiel_max_name = toString(unique(punkte_pro_spiel_max_name)))
 
 
 tbl_kennzahl <-
