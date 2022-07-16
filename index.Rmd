@@ -150,6 +150,7 @@ tbl_kennzahl <-
             Spieler_innen = n_distinct(tbl$spieler_in))
 
 # Anzahl der Spiel
+
 x<-
   tbl %>% 
   distinct(datum,spielrunden_am_abend,bockrunden_am_abend) %>% 
@@ -203,7 +204,7 @@ x <-
 tbl %>%
   ungroup() %>% 
   group_by(spieler_in) %>% 
-  summarise(spiele = sum(spielrunden_am_abend)) %>%
+  summarise(spiele = sum(spielrunden_am_abend)-sum(spielrunden_ausgesetzt)) %>%
   filter(spiele == max(spiele)) %>%
   summarise(spiele_max_n = unique(spiele),
             spiele_max_name = toString(unique(spieler_in)))
@@ -438,6 +439,69 @@ fig <-
 
 fig
 ```
+
+### Punkte nach Spieltag 
+
+```{r}
+tbl %>%
+  mutate(datum = as.Date(datum) %>%  as.character()) -> data
+
+crossing(data %>% distinct(spieler_in),data %>% distinct(datum)) -> x
+
+data <-
+left_join(x, 
+          data,
+          by = c("spieler_in","datum")) %>% 
+  mutate_if(is.numeric, ~replace(., is.na(.), 0)) %>% 
+  mutate(farbe = case_when(punkte<0 ~ "#d1615d",
+                           punkte>=0 ~ "#6a9f58"))
+  
+  
+data %>% 
+  distinct(spieler_in) %>% 
+  arrange(spieler_in) %>% pull() -> vec_player_arrange
+
+
+
+fig <-
+  plot_ly(data= data,
+          x = ~spieler_in,
+          y = ~punkte,
+          frame = ~datum,
+          type = 'bar',
+          showlegend = F,
+          # marker = list(color = if_else(data$punkte<=0,
+          #                               "#d1615d",
+          #                               "#6a9f58")),
+          #marker = list(color = ~farbe),
+          marker = list(color = "#5778a4"),
+          text=~punkte,
+          textfont=list(color="white"),
+          hovermode = "closest",
+          hovertemplate = paste0("Spieler:in<b>: ",data$spieler_in,"</b><br><br>",
+                                 "-Datum: ",data$datum,"<br>",
+                                 "-Punkte: ",data$punkte,"<br>",
+                                 "-Soli: ",data$soli_gespielt_anzahl,"<br>",
+                                 "<extra></extra>")) %>% 
+  layout(title = list(text = "<b>Punkte nach Spieltag</b>", 
+                      font= list(size = 24,
+                                 family = "calibri"),
+                      y = 0.98),
+         font = list(family = "calibri",size = 18),
+         separators = ',',
+         yaxis = list(title = "Punkte",
+                      ticksuffix = ""),
+         xaxis = list(title = list(text = "", standoff = 3),
+                      #categoryorder = "total descending",
+                      categoryorder = "array",
+                      categoryarray =  vec_player_arrange,
+                      legend = list(visible= FALSE,
+                                    orientation = 'h')))
+fig
+  
+
+```
+
 
 ### Durchschnittliche Punkte pro Spiel
 
