@@ -238,8 +238,6 @@ tbl_sum_player %>%
 tbl_kennzahl <-
   bind_cols(tbl_kennzahl,x)
 
-tbl_kennzahl %>%t()
-
 
 #2.4 Kennzahlen nach Spieltagen berechnen --------------------
 
