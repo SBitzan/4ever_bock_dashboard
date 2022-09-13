@@ -1,5 +1,5 @@
 ---
-title: "4ever Bock - Dashboard"
+title: "Neues Dashboard"
 date: "`r format(Sys.Date(), '%d.%m.%Y')`"
 output: 
   flexdashboard::flex_dashboard:
@@ -47,7 +47,7 @@ library(DT)
 # 
 # 4everBock-Ehrenbilder
 # https://drive.google.com/drive/folders/1a7Rn8z1eSw-xZPczU5vioYJh0eftK5dj?usp=sharing
-
+gs4_deauth()
 tbl <-
   read_sheet("https://docs.google.com/spreadsheets/d/1rZDkXF7CPSkXcMSGHUp-KRwgnoBsgN-xqQqRO-GyGs8/edit?usp=sharing")
 
