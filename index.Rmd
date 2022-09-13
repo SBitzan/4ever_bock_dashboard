@@ -12,8 +12,6 @@ output:
         - { icon: "fa-github", href: "https://github.com/faust-x", align: right}
         - { icon: "glyphicon-picture", href: "https://drive.google.com/drive/folders/1a7Rn8z1eSw-xZPczU5vioYJh0eftK5dj?usp=sharing", align: right}
         - { icon: "glyphicon-edit", href: "https://docs.google.com/spreadsheets/d/1rZDkXF7CPSkXcMSGHUp-KRwgnoBsgN-xqQqRO-GyGs8/edit?usp=sharing", align: right}
-        
-
 ---
 <style>                     
 .navbar {
